@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "doppelganger-thai-voice"
+version = "0.1.0"
+description = "ด็อปเปิลเก็งเงอร์ — local Thai voice cloning"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+  "faster-whisper==1.2.1",
+  "fastapi==0.141.1",
+  "f5-tts-th==1.0.9",
+  "gradio==5.50.0",
+  "python-multipart==0.0.32",
+  "soundfile==0.13.1",
+  "torch==2.3.0",
+  "torchaudio==2.3.0",
+  "transformers==4.46.3",
+  "uvicorn==0.53.0",
+]
+
+[project.optional-dependencies]
+dev = ["httpx==0.28.1", "pytest==8.4.2"]
+
+[project.scripts]
+thai-voice-clone = "thai_voice_clone.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+pythonpath = ["src"]
