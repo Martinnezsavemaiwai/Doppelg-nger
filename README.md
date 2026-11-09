@@ -69,8 +69,8 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 | ตัวแปร | ค่าที่ใช้ได้ | ค่าเริ่มต้น |
 | --- | --- | --- |
 | `THAI_VOICE_DEVICE` | `auto` `cuda` `cpu` | `auto` |
-| `THAI_VOICE_WHISPER_MODEL` | `tiny` `base` `small` `medium` หรือชื่อ checkpoint อื่น | `small` |
-| `THAI_VOICE_WHISPER_DEVICE` | `cpu` `cuda` `auto` | `cpu` |
+| `THAI_VOICE_WHISPER_MODEL` | ชื่อโมเดล faster-whisper, repo CTranslate2 บน Hugging Face หรือโฟลเดอร์ในเครื่อง | `Avocaduu14/whisper-th-large-v3-ct2` (Thonburian Whisper large-v3) |
+| `THAI_VOICE_WHISPER_DEVICE` | `cpu` `cuda` `auto` (`auto` ลอง GPU ก่อน ถ้าใช้ไม่ได้จะกลับไปใช้ CPU) | `auto` |
 
 ตัวอย่างการบังคับใช้ CPU:
 

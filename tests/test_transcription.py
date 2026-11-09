@@ -158,6 +158,42 @@ def test_transcriber_joins_segments_and_reuses_model(tmp_path, monkeypatch):
     assert created == [("tiny", "cpu", "int8")]
 
 
+def test_transcriber_auto_falls_back_to_cpu_when_cuda_fails(tmp_path, monkeypatch):
+    source = tmp_path / "voice.wav"
+    source.write_bytes(b"wav")
+    settings = Settings(root=tmp_path, device_mode="auto")
+    monkeypatch.delenv("THAI_VOICE_WHISPER_MODEL", raising=False)
+    monkeypatch.delenv("THAI_VOICE_WHISPER_DEVICE", raising=False)
+    created = []
+
+    def broken_segments():
+        raise RuntimeError("Library cublas64_12.dll is not found")
+        yield
+
+    class FakeModel:
+        def __init__(self, device):
+            self.device = device
+
+        def transcribe(self, path, **kwargs):
+            if self.device == "cuda":
+                return broken_segments(), SimpleNamespace(duration=1.0, language="th")
+            return iter([SimpleNamespace(text="สวัสดี")]), SimpleNamespace(
+                duration=1.0, language="th"
+            )
+
+    def factory(model_name, device, compute_type):
+        created.append((model_name, device, compute_type))
+        return FakeModel(device)
+
+    result = LocalWhisperTranscriber(settings, model_factory=factory).transcribe(source)
+
+    assert result.text == "สวัสดี"
+    assert created == [
+        ("Avocaduu14/whisper-th-large-v3-ct2", "cuda", "float16"),
+        ("Avocaduu14/whisper-th-large-v3-ct2", "cpu", "int8"),
+    ]
+
+
 def test_transcriber_reports_missing_dependency_as_user_error(tmp_path):
     source = tmp_path / "voice.wav"
     source.write_bytes(b"wav")

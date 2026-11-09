@@ -25,7 +25,26 @@ _WORKER_MODULE = "thai_voice_clone.transcription_worker"
 _WORKER_ERROR = "ถอดข้อความจากเสียงไม่สำเร็จ คุณยังสามารถกรอกข้อความเองได้"
 
 
+DEFAULT_WHISPER_MODEL = "Avocaduu14/whisper-th-large-v3-ct2"
+
+
+def _expose_cuda12_dlls() -> None:
+    # ctranslate2 needs CUDA 12 cuBLAS/cuDNN; torch here is cu118, so the
+    # nvidia-*-cu12 wheels supply them. Windows finds DLLs through PATH.
+    if sys.platform != "win32":
+        return
+    try:
+        import nvidia
+    except ImportError:
+        return
+    for root in nvidia.__path__:
+        for bin_dir in Path(root).glob("*/bin"):
+            os.environ["PATH"] = str(bin_dir) + os.pathsep + os.environ.get("PATH", "")
+
+
 def _default_model_factory(model_name: str, device: str, compute_type: str):
+    if device == "cuda":
+        _expose_cuda12_dlls()
     try:
         from faster_whisper import WhisperModel
     except ImportError as exc:
@@ -49,21 +68,29 @@ class LocalWhisperTranscriber:
         self.model_factory = model_factory
         self._models: dict[tuple[str, str, str], object] = {}
 
-    def _model_config(self) -> tuple[str, str, str]:
-        model_name = os.getenv("THAI_VOICE_WHISPER_MODEL", "small").strip() or "small"
-        configured_device = os.getenv("THAI_VOICE_WHISPER_DEVICE", "cpu").strip().lower()
+    def _model_configs(self) -> list[tuple[str, str, str]]:
+        """Candidate (model, device, compute_type) configs, tried in order."""
+        model_name = (
+            os.getenv("THAI_VOICE_WHISPER_MODEL", DEFAULT_WHISPER_MODEL).strip()
+            or DEFAULT_WHISPER_MODEL
+        )
+        configured_device = os.getenv("THAI_VOICE_WHISPER_DEVICE", "auto").strip().lower()
         if configured_device not in {"cpu", "cuda", "auto"}:
             raise TranscriptionError(
                 "THAI_VOICE_WHISPER_DEVICE ต้องเป็น cpu, cuda หรือ auto"
             )
-        device = configured_device
-        if configured_device == "auto":
-            device = "cuda" if self.settings.device_mode == "cuda" else "cpu"
-        compute_type = "float16" if device == "cuda" else "int8"
-        return model_name, device, compute_type
+        if configured_device != "auto":
+            devices = [configured_device]
+        elif self.settings.device_mode == "cpu":
+            devices = ["cpu"]
+        else:
+            devices = ["cuda", "cpu"]
+        return [
+            (model_name, device, "float16" if device == "cuda" else "int8")
+            for device in devices
+        ]
 
-    def _get_model(self):
-        config = self._model_config()
+    def _get_model(self, config: tuple[str, str, str]):
         if config not in self._models:
             try:
                 self._models[config] = self.model_factory(*config)
@@ -83,22 +110,29 @@ class LocalWhisperTranscriber:
         source = Path(path)
         if not source.is_file():
             raise TranscriptionError("ไม่พบไฟล์เสียงสำหรับถอดข้อความ")
-        try:
-            segments, info = self._get_model().transcribe(
-                str(source),
-                language="th",
-                vad_filter=True,
-                beam_size=5,
-            )
-            text = " ".join(
-                segment.text.strip() for segment in segments if segment.text.strip()
-            ).strip()
-        except TranscriptionError:
-            raise
-        except Exception as exc:
-            raise TranscriptionError(
-                "ถอดข้อความจากเสียงไม่สำเร็จ คุณยังสามารถกรอกข้อความเองได้"
-            ) from exc
+        configs = self._model_configs()
+        for index, config in enumerate(configs):
+            try:
+                segments, info = self._get_model(config).transcribe(
+                    str(source),
+                    language="th",
+                    vad_filter=True,
+                    beam_size=5,
+                )
+                # Segments are lazy: CUDA library errors surface while iterating.
+                text = " ".join(
+                    segment.text.strip() for segment in segments if segment.text.strip()
+                ).strip()
+                break
+            except Exception as exc:
+                self._models.pop(config, None)
+                if index < len(configs) - 1:
+                    continue  # GPU unusable; retry on CPU.
+                if isinstance(exc, TranscriptionError):
+                    raise
+                raise TranscriptionError(
+                    "ถอดข้อความจากเสียงไม่สำเร็จ คุณยังสามารถกรอกข้อความเองได้"
+                ) from exc
         if not text:
             raise TranscriptionError(
                 "ไม่พบคำพูดที่ชัดเจนในไฟล์เสียง คุณสามารถกรอกข้อความเองได้"

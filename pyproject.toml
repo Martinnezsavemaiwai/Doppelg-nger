@@ -8,10 +8,15 @@ version = "0.1.0"
 description = "ด็อปเปิลเก็งเงอร์ — local Thai voice cloning"
 requires-python = ">=3.10,<3.13"
 dependencies = [
+  # av 19 dropped open(metadata_errors=...), which faster-whisper 1.2.1 still passes.
+  "av==15.1.0",
   "faster-whisper==1.2.1",
   "fastapi==0.141.1",
   "f5-tts-th==1.0.9",
   "gradio==5.50.0",
+  # CUDA 12 runtime for ctranslate2 (Whisper on GPU); torch itself stays on cu118.
+  "nvidia-cublas-cu12==12.9.2.10",
+  "nvidia-cudnn-cu12==9.28.1.4",
   "python-multipart==0.0.32",
   "soundfile==0.13.1",
   "torch==2.3.0",
