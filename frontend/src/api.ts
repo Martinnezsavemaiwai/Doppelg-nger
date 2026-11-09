@@ -1,13 +1,7 @@
-export type ModelId = "v1" | "v2";
-
-export const DEFAULT_SYNTHESIS_SPEED = 0.8;
-
 export type SynthesisInput = {
   reference: File;
   referenceText: string;
   text: string;
-  model: ModelId;
-  speed: number;
 };
 
 export type SynthesisResult = {
@@ -27,8 +21,6 @@ export function buildSynthesisFormData(input: SynthesisInput): FormData {
   form.append("reference", input.reference);
   form.append("reference_text", input.referenceText);
   form.append("text", input.text);
-  form.append("model", input.model);
-  form.append("speed", String(input.speed));
   return form;
 }
 

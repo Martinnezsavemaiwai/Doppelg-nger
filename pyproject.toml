@@ -11,18 +11,19 @@ dependencies = [
   # av 19 dropped open(metadata_errors=...), which faster-whisper 1.2.1 still passes.
   "av==15.1.0",
   "faster-whisper==1.2.1",
-  "fastapi==0.141.1",
-  "f5-tts-th==1.0.9",
-  "gradio==5.50.0",
-  # CUDA 12 runtime for ctranslate2 (Whisper on GPU); torch itself stays on cu118.
+  "fastapi==0.162.2",
+  "gradio==6.31.0",
+  # CUDA 12 runtime for ctranslate2 (Whisper on GPU). The Whisper worker never
+  # imports torch, so it cannot use the copies bundled inside torch's wheel.
   "nvidia-cublas-cu12==12.9.2.10",
   "nvidia-cudnn-cu12==9.28.1.4",
   "python-multipart==0.0.32",
-  "soundfile==0.13.1",
-  "torch==2.3.0",
-  "torchaudio==2.3.0",
-  "transformers==4.46.3",
+  "soundfile==0.14.0",
+  "torch==2.14.1",
+  "torchaudio==2.11.0",
+  "transformers==5.22.2",
   "uvicorn==0.53.0",
+  "voxcpm==2.0.3",
 ]
 
 [project.optional-dependencies]

@@ -28,12 +28,12 @@ The user runs the project on Windows, starts a local backend and frontend, place
 
 ## Capabilities and Constraints
 
-- Thai zero-shot synthesis uses the existing F5-TTS-THAI service.
+- Thai zero-shot synthesis uses VoxCPM2.
 - Reference audio must be 2–15 seconds, with 4–8 seconds recommended.
 - Supported input formats are WAV, MP3, M4A, FLAC, and browser-recorded WebM.
 - The user can record from the browser microphone, preview the reference, and request local Thai transcription before editing the transcript.
 - Generated text is limited to 500 characters.
-- Output is a 24 kHz WAV file.
+- Output is a 48 kHz WAV file.
 - The project must remain local-only by default and must not imply that generated speech is authentic evidence of a person's words.
 - Fine-tuning and streaming are explicitly out of scope for this surface; local transcription is included as an assisted zero-shot workflow.
 

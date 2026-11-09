@@ -8,17 +8,27 @@ import pytest
 from thai_voice_clone.model import (
     ModelError,
     VoiceCloneService,
-    create_f5_backend,
+    VoxCPMBackend,
     select_device,
     split_generation_text,
 )
 from thai_voice_clone.validation import GenerationRequest
 
 
-def request(tmp_path, model="v1"):
-    return GenerationRequest(
-        tmp_path / "ref.wav", "ต้นฉบับ", "ข้อความใหม่", model, 1.0
-    )
+def request(tmp_path):
+    return GenerationRequest(tmp_path / "ref.wav", "ต้นฉบับ", "ข้อความใหม่")
+
+
+class FakeBackend:
+    sample_rate = 48000
+
+    def __init__(self, waveform=(0.0, 0.1, -0.1), calls=None):
+        self.waveform = list(waveform)
+        self.calls = calls if calls is not None else []
+
+    def infer(self, **kwargs):
+        self.calls.append(kwargs)
+        return self.waveform
 
 
 @pytest.mark.parametrize(
@@ -54,31 +64,31 @@ def test_forced_cuda_reports_failed_probe():
         select_device("cuda", lambda: True, broken)
 
 
-def test_service_caches_backend_and_writes_24khz_wave(tmp_path):
+def test_service_caches_backend_and_writes_at_backend_sample_rate(tmp_path):
     created = []
     written = []
+    verified = []
 
-    class FakeBackend:
-        def infer(self, **kwargs):
-            assert kwargs["step"] == 32
-            assert kwargs["max_chars"] == 100
-            return [0.0, 0.1, -0.1]
-
-    def factory(model, device):
-        created.append((model, device))
+    def factory(device):
+        created.append(device)
         return FakeBackend()
 
     def writer(path, waveform, sample_rate):
         written.append((list(waveform), sample_rate))
         Path(path).write_bytes(b"RIFFvalid")
 
-    service = VoiceCloneService("cpu", factory, writer, lambda path: True)
+    def verifier(path, sample_rate):
+        verified.append(sample_rate)
+        return True
+
+    service = VoiceCloneService("cpu", factory, writer, verifier)
     reference = tmp_path / "normalized.wav"
     reference.write_bytes(b"RIFF")
     for name in ("one.wav", "two.wav"):
         service.synthesize(request(tmp_path), reference, tmp_path / name)
-    assert created == [("v1", "cpu")]
-    assert written == [([0.0, 0.1, -0.1], 24000)] * 2
+    assert created == ["cpu"]
+    assert written == [([0.0, 0.1, -0.1], 48000)] * 2
+    assert verified == [48000, 48000]
 
 
 def test_split_generation_text_turns_punctuation_into_pause_metadata():
@@ -111,35 +121,53 @@ def test_split_still_breaks_after_a_number_that_ends_a_sentence():
     ]
 
 
-@pytest.mark.parametrize("device,cuda_seen", [("cpu", False), ("cuda", True)])
-def test_f5_backend_imports_with_the_selected_device(monkeypatch, device, cuda_seen):
-    torch = SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: True))
+def test_voxcpm_backend_loads_on_device_and_clones_with_reference(monkeypatch):
+    loaded = {}
+    generated = {}
 
-    class FakeTTS:
-        def __init__(self, model):
-            self.cuda_seen = torch.cuda.is_available()
+    class FakeVoxCPM:
+        tts_model = SimpleNamespace(sample_rate=48000)
 
+        @classmethod
+        def from_pretrained(cls, model_id, **kwargs):
+            loaded.update(model_id=model_id, **kwargs)
+            return cls()
+
+        def generate(self, **kwargs):
+            generated.update(kwargs)
+            return [0.0]
+
+    dtypes = []
+    torch = SimpleNamespace(
+        float32="float32",
+        bfloat16="bfloat16",
+        get_default_dtype=lambda: "float32",
+        set_default_dtype=dtypes.append,
+    )
     monkeypatch.setitem(sys.modules, "torch", torch)
-    monkeypatch.setitem(sys.modules, "f5_tts_th", SimpleNamespace())
-    monkeypatch.setitem(sys.modules, "f5_tts_th.tts", SimpleNamespace(TTS=FakeTTS))
+    monkeypatch.setitem(sys.modules, "voxcpm", SimpleNamespace(VoxCPM=FakeVoxCPM))
 
-    assert create_f5_backend("v1", device).cuda_seen is cuda_seen
+    backend = VoxCPMBackend("cuda")
+    assert backend.infer(ref_audio="ref.wav", ref_text="ต้นฉบับ", gen_text="ใหม่") == [0.0]
+    assert backend.sample_rate == 48000
+    assert loaded == {"model_id": "openbmb/VoxCPM2", "load_denoiser": False, "device": "cuda"}
+    assert dtypes == ["bfloat16", "float32"]  # build in bf16, then restore the default
+    assert generated["text"] == "ใหม่"
+    assert generated["prompt_text"] == "ต้นฉบับ"
+    assert generated["prompt_wav_path"] == generated["reference_wav_path"] == "ref.wav"
 
 
 def test_service_inserts_natural_pauses_between_sentence_segments(tmp_path):
     calls = []
 
-    class FakeBackend:
-        def infer(self, **kwargs):
-            calls.append(kwargs)
-            return [0.0, 0.1]
-
     def writer(path, waveform, sample_rate):
-        assert sample_rate == 24000
-        assert len(waveform) == 7684
+        assert sample_rate == 48000
+        assert len(waveform) == 2 + round(0.32 * 48000) + 2
         Path(path).write_bytes(b"RIFFvalid")
 
-    service = VoiceCloneService("cpu", lambda *_: FakeBackend(), writer, lambda _: True)
+    service = VoiceCloneService(
+        "cpu", lambda _: FakeBackend([0.0, 0.1], calls), writer, lambda *_: True
+    )
     output = tmp_path / "out.wav"
     service.synthesize(
         replace(request(tmp_path), text="ประโยคแรก. ประโยคที่สอง"),
@@ -153,15 +181,12 @@ def test_service_inserts_natural_pauses_between_sentence_segments(tmp_path):
 def test_service_preserves_punctuation_segments_for_generation(tmp_path):
     calls = []
 
-    class FakeBackend:
-        def infer(self, **kwargs):
-            calls.append(kwargs)
-            return [0.0]
-
     def writer(path, waveform, sample_rate):
         Path(path).write_bytes(b"RIFFvalid")
 
-    service = VoiceCloneService("cpu", lambda *_: FakeBackend(), writer, lambda _: True)
+    service = VoiceCloneService(
+        "cpu", lambda _: FakeBackend([0.0], calls), writer, lambda *_: True
+    )
     service.synthesize(
         replace(request(tmp_path), text="ประโยคแรก. ประโยคที่สอง"),
         tmp_path / "ref.wav",
@@ -173,15 +198,11 @@ def test_service_preserves_punctuation_segments_for_generation(tmp_path):
 
 
 def test_service_rejects_empty_or_unreadable_output(tmp_path):
-    class FakeBackend:
-        def infer(self, **kwargs):
-            return []
-
     def writer(path, waveform, sample_rate):
         Path(path).write_bytes(b"")
 
     service = VoiceCloneService(
-        "cpu", lambda *_: FakeBackend(), writer, lambda path: False
+        "cpu", lambda _: FakeBackend([]), writer, lambda *_: False
     )
     with pytest.raises(ModelError, match="ไฟล์เสียงผลลัพธ์"):
         service.synthesize(request(tmp_path), tmp_path / "ref.wav", tmp_path / "out.wav")
@@ -190,13 +211,13 @@ def test_service_rejects_empty_or_unreadable_output(tmp_path):
 def test_service_translates_out_of_memory_and_removes_partial_output(tmp_path):
     output = tmp_path / "partial.wav"
 
-    class FakeBackend:
+    class OutOfMemoryBackend(FakeBackend):
         def infer(self, **kwargs):
             output.write_bytes(b"partial")
             raise RuntimeError("CUDA out of memory")
 
     service = VoiceCloneService(
-        "cuda", lambda *_: FakeBackend(), lambda *args: None, lambda path: True
+        "cuda", lambda _: OutOfMemoryBackend(), lambda *args: None, lambda *_: True
     )
     with pytest.raises(ModelError, match="หน่วยความจำการ์ดจอ"):
         service.synthesize(request(tmp_path), tmp_path / "ref.wav", output)

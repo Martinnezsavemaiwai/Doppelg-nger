@@ -18,7 +18,7 @@ _ABBREVIATION = re.compile(r"(?<![฀-๿])(?:[ก-ฮ]{1,3}\.)+")
 def _remove_non_clause_punctuation(text: str) -> str:
     """Rewrite numbers and abbreviations so their marks do not split clauses."""
     text = _THOUSANDS_COMMA.sub("", text)
-    # f5_tts_th strips "." before reading numbers, so 3.14 would become 314.
+    # Read decimals digit by digit in Thai; "." would otherwise split the clause.
     text = _DECIMAL.sub(lambda match: f"{match[1]} จุด {' '.join(match[2])}", text)
     return _ABBREVIATION.sub(lambda match: match[0].replace(".", "") + " ", text)
 
@@ -86,38 +86,35 @@ class VoiceCloneService:
         self.backend_factory = backend_factory
         self.wav_writer = wav_writer
         self.wav_verifier = wav_verifier
-        self._cache: dict[tuple[str, str], object] = {}
+        self._backend = None
 
     def synthesize(self, request, normalized_reference, output_path) -> Path:
         output_path = Path(output_path)
         try:
-            key = (request.model, self.device)
-            if key not in self._cache:
-                self._cache[key] = self.backend_factory(request.model, self.device)
+            if self._backend is None:
+                self._backend = self.backend_factory(self.device)
+            backend = self._backend
+            sample_rate = backend.sample_rate
             segments = split_generation_text(request.text)
             waveform = _join_waveforms(
                 [
                     (
-                        self._cache[key].infer(
+                        backend.infer(
                             ref_audio=str(normalized_reference),
                             ref_text=request.reference_text,
                             gen_text=segment,
-                            step=32,
-                            speed=request.speed,
-                            cfg=2.0,
-                            max_chars=100,
                         ),
                         pause,
                     )
                     for segment, pause in segments
                 ],
-                24000,
+                sample_rate,
             )
-            self.wav_writer(output_path, waveform, 24000)
+            self.wav_writer(output_path, waveform, sample_rate)
             if (
                 not output_path.is_file()
                 or output_path.stat().st_size == 0
-                or not self.wav_verifier(output_path)
+                or not self.wav_verifier(output_path, sample_rate)
             ):
                 raise ModelError("ไฟล์เสียงผลลัพธ์ไม่สมบูรณ์")
             return output_path
@@ -127,14 +124,13 @@ class VoiceCloneService:
         except Exception as exc:
             output_path.unlink(missing_ok=True)
             if "out of memory" in str(exc).lower():
-                self._cache.clear()
+                self._backend = None
                 _clear_cuda_cache()
                 raise ModelError(
-                    "หน่วยความจำการ์ดจอไม่พอ กรุณาปิดโปรแกรมที่ใช้ GPU "
-                    "หรือลองโหมด CPU"
+                    "หน่วยความจำการ์ดจอไม่พอ ปิดโปรแกรมที่ใช้ GPU แล้วลองอีกครั้ง"
                 ) from exc
             raise ModelError(
-                "สังเคราะห์เสียงไม่สำเร็จ โปรดดูรายละเอียดในหน้าต่างคำสั่ง"
+                "สร้างเสียงไม่สำเร็จ ดูรายละเอียดใน outputs/logs/backend.error.log"
             ) from exc
 
 
@@ -148,16 +144,38 @@ def _clear_cuda_cache() -> None:
         pass
 
 
-def create_f5_backend(model: str, device: str):
-    if device == "cpu":
+VOXCPM_MODEL_ID = "openbmb/VoxCPM2"
+
+
+class VoxCPMBackend:
+    def __init__(self, device: str) -> None:
         import torch
+        from voxcpm import VoxCPM
 
-        # f5_tts_th has no device option; it asks torch once when imported.
-        torch.cuda.is_available = lambda: False
+        # VoxCPM builds the 2B model in float32 before casting to bfloat16, which
+        # commits ~16 GB and can crash a 16 GB machine before the pagefile grows.
+        # Building in bfloat16 peaks at ~13 GB; RoPE buffers pin float32 explicitly
+        # and every weight is overwritten from the checkpoint, so output is the same.
+        previous_dtype = torch.get_default_dtype()
+        torch.set_default_dtype(torch.bfloat16)
+        try:
+            self._model = VoxCPM.from_pretrained(
+                VOXCPM_MODEL_ID, load_denoiser=False, device=device
+            )
+        finally:
+            torch.set_default_dtype(previous_dtype)
+        self.sample_rate = self._model.tts_model.sample_rate
 
-    from f5_tts_th.tts import TTS
-
-    return TTS(model=model)
+    def infer(self, ref_audio: str, ref_text: str, gen_text: str):
+        # Same clip as prompt and reference gives the closest voice match (VoxCPM docs).
+        return self._model.generate(
+            text=gen_text,
+            prompt_wav_path=ref_audio,
+            prompt_text=ref_text,
+            reference_wav_path=ref_audio,
+            cfg_value=2.0,
+            inference_timesteps=10,
+        )
 
 
 def write_wav(path: Path, waveform, sample_rate: int) -> None:
@@ -166,14 +184,14 @@ def write_wav(path: Path, waveform, sample_rate: int) -> None:
     soundfile.write(path, waveform, sample_rate)
 
 
-def verify_wav(path: Path) -> bool:
+def verify_wav(path: Path, sample_rate: int) -> bool:
     import soundfile
 
     try:
         info = soundfile.info(path)
     except Exception:
         return False
-    return info.frames > 0 and info.samplerate == 24000
+    return info.frames > 0 and info.samplerate == sample_rate
 
 
 def create_service(settings) -> VoiceCloneService:
@@ -186,4 +204,4 @@ def create_service(settings) -> VoiceCloneService:
         torch.empty(1, device="cuda")
 
     device = select_device(settings.device_mode, torch.cuda.is_available, probe)
-    return VoiceCloneService(device, create_f5_backend, write_wav, verify_wav)
+    return VoiceCloneService(device, VoxCPMBackend, write_wav, verify_wav)

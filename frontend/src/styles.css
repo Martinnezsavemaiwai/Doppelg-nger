@@ -124,20 +124,6 @@ textarea:hover, select:hover { border-color: var(--line-strong); }
 .character-count { color: var(--ink-soft); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
 .character-count.is-limit { color: var(--record); font-weight: 600; }
 
-.settings { border-top: 1px solid var(--line); }
-.settings summary { display: flex; min-height: 48px; align-items: center; gap: 8px; font-weight: 600; list-style: none; }
-.settings summary::-webkit-details-marker { display: none; }
-.settings-value { margin-left: auto; color: var(--ink-soft); font-size: 0.875rem; font-weight: 500; font-variant-numeric: tabular-nums; }
-.settings summary svg { color: var(--ink-soft); transition: transform 180ms ease-out; }
-.settings[open] summary svg { transform: rotate(180deg); }
-.controls-row { display: grid; gap: 16px; padding-bottom: 4px; }
-.select-wrap { position: relative; }
-.select-wrap select { min-height: 44px; padding: 0 40px 0 12px; appearance: none; }
-.select-wrap select option { color: var(--ink); background: var(--panel); }
-.select-wrap svg { position: absolute; top: 14px; right: 12px; color: var(--ink-soft); pointer-events: none; }
-.value-badge { float: right; font-variant-numeric: tabular-nums; }
-.field-group input[type="range"] { width: 100%; min-height: 44px; margin: 0; accent-color: var(--accent-text); }
-.range-labels { display: flex; justify-content: space-between; margin-top: -8px; color: var(--ink-soft); font-size: 0.875rem; }
 
 .action-bar { position: sticky; z-index: 2; bottom: 0; display: grid; gap: 8px; margin-inline: calc(var(--gutter) * -1); padding: 8px var(--gutter) max(12px, env(safe-area-inset-bottom)); background: var(--ground); border-top: 1px solid var(--line); }
 .error-message { display: flex; align-items: flex-start; gap: 8px; color: var(--record); font-size: 0.9375rem; font-weight: 500; line-height: 1.5; }
@@ -170,7 +156,7 @@ textarea:hover, select:hover { border-color: var(--line-strong); }
 }
 
 @media (min-width: 560px) {
-  .source-actions, .controls-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .source-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .step, .result-panel { padding: 24px; }
   .submit-row { display: flex; align-items: center; gap: 16px; }
 }

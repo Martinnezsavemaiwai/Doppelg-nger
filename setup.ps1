@@ -68,11 +68,11 @@ if (-not (Test-Path -LiteralPath $venvPython)) {
 $env:HF_HOME = Join-Path $runtimeRoot '.cache\huggingface'
 & $venvPython -m pip install --upgrade 'pip==26.2.1' 'setuptools>=75' wheel
 if ($LASTEXITCODE -ne 0) { throw 'Could not update Python packaging tools.' }
-& $venvPython -m pip install 'torch==2.3.0+cu118' 'torchaudio==2.3.0+cu118' --index-url https://download.pytorch.org/whl/cu118
+& $venvPython -m pip install 'torch==2.14.1+cu126' 'torchaudio==2.11.0+cu126' --index-url https://download.pytorch.org/whl/cu126
 if ($LASTEXITCODE -ne 0) { throw 'Could not install the CUDA PyTorch packages.' }
 & $venvPython -m pip install -e "$runtimeRoot[dev]"
 if ($LASTEXITCODE -ne 0) { throw 'Could not install the project dependencies.' }
-& $venvPython -c "import torch, gradio, soundfile, f5_tts_th; print('Synthesis device:', 'cuda' if torch.cuda.is_available() else 'cpu')"
+& $venvPython -c "import torch, gradio, soundfile, voxcpm; print('Synthesis device:', 'cuda' if torch.cuda.is_available() else 'cpu')"
 if ($LASTEXITCODE -ne 0) { throw 'The installed synthesis environment failed its import check.' }
 & $venvPython -c "import faster_whisper; print('Transcription backend: ready')"
 if ($LASTEXITCODE -ne 0) { throw 'The installed transcription environment failed its import check.' }

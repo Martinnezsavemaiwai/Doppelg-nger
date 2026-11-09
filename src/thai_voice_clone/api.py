@@ -13,17 +13,13 @@ from fastapi.responses import FileResponse
 
 from .app import generate
 from .audio import AudioPreparationError
-from .config import DEFAULT_SYNTHESIS_SPEED, load_settings
+from .config import load_settings
 from .model import ModelError, create_service
 from .transcription import SubprocessWhisperTranscriber, TranscriptionError
 from .validation import UserInputError
 
 
 ALLOWED_SUFFIXES = {".wav", ".mp3", ".m4a", ".flac", ".webm"}
-MODEL_OPTIONS = [
-    {"id": "v1", "label": "V1 อ่านภาษาไทยทั่วไป"},
-    {"id": "v2", "label": "V2 ลดการอ่านข้ามและอ่านซ้ำ"},
-]
 
 
 def _split_status(status: str) -> tuple[str, str | None]:
@@ -98,17 +94,11 @@ def create_api(
     def health() -> dict[str, str]:
         return {"status": "ok", "service": "doppelganger"}
 
-    @app.get("/api/models")
-    def models() -> dict[str, list[dict[str, str]]]:
-        return {"models": MODEL_OPTIONS}
-
     @app.post("/api/synthesize")
     def synthesize(
         reference: UploadFile = File(...),
         reference_text: str = Form(...),
         text: str = Form(...),
-        model: str = Form("v1"),
-        speed: float = Form(DEFAULT_SYNTHESIS_SPEED),
     ) -> dict[str, str | None]:
         with _saved_upload(reference) as reference_path:
             try:
@@ -116,8 +106,6 @@ def create_api(
                     reference_path,
                     reference_text,
                     text,
-                    model,
-                    speed,
                     service=get_service(),
                     output_factory=settings.new_output_path,
                 )

@@ -12,7 +12,7 @@ def make_settings(tmp_path: Path) -> Settings:
     return Settings(root=tmp_path, device_mode="cpu")
 
 
-def test_health_and_models_do_not_load_the_tts_service(tmp_path):
+def test_health_does_not_load_the_tts_service(tmp_path):
     def fail_if_loaded(_settings):
         raise AssertionError("the model service must be lazy")
 
@@ -21,25 +21,21 @@ def test_health_and_models_do_not_load_the_tts_service(tmp_path):
     )
 
     health = client.get("/api/health")
-    models = client.get("/api/models")
 
     assert health.status_code == 200
     assert health.json()["status"] == "ok"
-    assert [item["id"] for item in models.json()["models"]] == ["v1", "v2"]
 
 
 def test_synthesize_accepts_multipart_audio_and_returns_output_url(tmp_path):
     settings = make_settings(tmp_path)
     calls = []
 
-    def fake_generate(reference, reference_text, text, model, speed, **kwargs):
+    def fake_generate(reference, reference_text, text, **kwargs):
         calls.append(
             {
                 "reference": Path(reference),
                 "reference_text": reference_text,
                 "text": text,
-                "model": model,
-                "speed": speed,
             }
         )
         output = kwargs["output_factory"]()
@@ -59,8 +55,6 @@ def test_synthesize_accepts_multipart_audio_and_returns_output_url(tmp_path):
         data={
             "reference_text": " สวัสดีครับ ",
             "text": " ทดลองเสียง ",
-            "model": "v2",
-            "speed": "0.9",
         },
     )
 
@@ -72,8 +66,6 @@ def test_synthesize_accepts_multipart_audio_and_returns_output_url(tmp_path):
     assert calls[0]["reference"].suffix == ".wav"
     assert calls[0]["reference_text"] == " สวัสดีครับ "
     assert calls[0]["text"] == " ทดลองเสียง "
-    assert calls[0]["model"] == "v2"
-    assert calls[0]["speed"] == 0.9
 
 
 def test_synthesize_accepts_recorded_webm_reference(tmp_path):

@@ -12,8 +12,6 @@ class GenerationRequest:
     reference: Path
     reference_text: str
     text: str
-    model: str
-    speed: float
     warning: str | None = None
 
 
@@ -30,8 +28,6 @@ def validate_request(
     reference: str | Path | None,
     reference_text: str,
     text: str,
-    model: str,
-    speed: float,
     duration: float,
 ) -> GenerationRequest:
     path = Path(reference) if reference else None
@@ -45,13 +41,9 @@ def validate_request(
     if not normalized_reference_text:
         raise UserInputError("กรุณากรอกข้อความต้นฉบับให้ตรงกับเสียง")
     if not any(character.isalnum() for character in normalized_text):
-        raise UserInputError("กรุณากรอกข้อความที่ต้องการสังเคราะห์")
+        raise UserInputError("กรุณาพิมพ์ข้อความที่จะพูด")
     if len(normalized_text) > 500:
         raise UserInputError("ข้อความต้องไม่เกิน 500 ตัวอักษร")
-    if model not in {"v1", "v2"}:
-        raise UserInputError("โมเดลต้องเป็น v1 หรือ v2")
-    if not 0.7 <= float(speed) <= 1.2:
-        raise UserInputError("ความเร็วต้องอยู่ระหว่าง 0.7 ถึง 1.2")
     if not 2.0 <= float(duration) <= 15.0:
         raise UserInputError("เสียงต้นฉบับต้องยาว 2 ถึง 15 วินาที")
 
@@ -64,7 +56,5 @@ def validate_request(
         reference=path,
         reference_text=normalized_reference_text,
         text=normalized_text,
-        model=model,
-        speed=float(speed),
         warning="; ".join(warnings) or None,
     )

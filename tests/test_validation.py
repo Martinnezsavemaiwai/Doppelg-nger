@@ -11,8 +11,6 @@ def valid(tmp_path, **changes):
         "reference": audio,
         "reference_text": "สวัสดีครับ",
         "text": "ทดสอบเสียง",
-        "model": "v1",
-        "speed": 1.0,
         "duration": 6.0,
     }
     values.update(changes)
@@ -23,11 +21,8 @@ def valid(tmp_path, **changes):
     "field,value,needle",
     [
         ("reference_text", "  ", "ข้อความต้นฉบับ"),
-        ("text", "", "ข้อความที่ต้องการ"),
-        ("text", "... ,!?", "ข้อความที่ต้องการ"),
-        ("model", "v3", "โมเดล"),
-        ("speed", 0.69, "ความเร็ว"),
-        ("speed", 1.21, "ความเร็ว"),
+        ("text", "", "ข้อความที่จะพูด"),
+        ("text", "... ,!?", "ข้อความที่จะพูด"),
         ("duration", 1.9, "2 ถึง 15"),
         ("duration", 15.1, "2 ถึง 15"),
     ],

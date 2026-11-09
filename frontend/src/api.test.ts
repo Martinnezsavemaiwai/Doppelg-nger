@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   buildSynthesisFormData,
-  DEFAULT_SYNTHESIS_SPEED,
   requestSynthesis,
   requestTranscription,
   type SynthesisInput,
@@ -12,23 +11,16 @@ const input: SynthesisInput = {
   reference: new File(["RIFF"], "voice.wav", { type: "audio/wav" }),
   referenceText: "สวัสดีครับ",
   text: "ทดลองเสียง",
-  model: "v2",
-  speed: 0.9,
 };
 
 describe("voice synthesis API client", () => {
-  it("uses the slower model-recommended default speed", () => {
-    expect(DEFAULT_SYNTHESIS_SPEED).toBe(0.8);
-  });
-
   it("maps the form state to the backend multipart contract", () => {
     const form = buildSynthesisFormData(input);
 
     expect(form.get("reference")).toBe(input.reference);
     expect(form.get("reference_text")).toBe("สวัสดีครับ");
     expect(form.get("text")).toBe("ทดลองเสียง");
-    expect(form.get("model")).toBe("v2");
-    expect(form.get("speed")).toBe("0.9");
+    expect([...form.keys()]).toEqual(["reference", "reference_text", "text"]);
   });
 
   it("returns the synthesis payload and turns failed responses into a readable error", async () => {
@@ -38,7 +30,7 @@ describe("voice synthesis API client", () => {
         new Response(JSON.stringify({ status: "สร้างเสียงเรียบร้อย", warning: null, audio_url: "/api/outputs/a.wav" }), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ detail: "กรุณากรอกข้อความที่ต้องการสังเคราะห์" }), { status: 400 }),
+        new Response(JSON.stringify({ detail: "กรุณาพิมพ์ข้อความที่จะพูด" }), { status: 400 }),
       );
 
     await expect(requestSynthesis(input, fetcher)).resolves.toEqual({
@@ -47,7 +39,7 @@ describe("voice synthesis API client", () => {
       audio_url: "/api/outputs/a.wav",
     });
     await expect(requestSynthesis(input, fetcher)).rejects.toThrow(
-      "กรุณากรอกข้อความที่ต้องการสังเคราะห์",
+      "กรุณาพิมพ์ข้อความที่จะพูด",
     );
   });
 

@@ -2,7 +2,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from .audio import AudioPreparationError, prepared_reference, probe_duration
-from .config import DEFAULT_SYNTHESIS_SPEED, load_settings
+from .config import load_settings
 from .model import ModelError, create_service
 from .validation import UserInputError, validate_request
 
@@ -11,8 +11,6 @@ def generate(
     reference,
     reference_text,
     text,
-    model,
-    speed,
     duration_probe=probe_duration,
     prepare=prepared_reference,
     service=None,
@@ -21,9 +19,7 @@ def generate(
     if not reference:
         raise UserInputError("กรุณาเลือกไฟล์เสียงต้นฉบับ")
     duration = duration_probe(reference)
-    request = validate_request(
-        reference, reference_text, text, model, speed, duration
-    )
+    request = validate_request(reference, reference_text, text, duration)
     if service is None or output_factory is None:
         raise RuntimeError("generation dependencies are not configured")
     with prepare(request.reference) as normalized_reference:
@@ -44,7 +40,7 @@ def build_app(service_factory: Callable = create_service):
     settings = load_settings()
     cached_service = None
 
-    def handle(reference, reference_text, text, model, speed):
+    def handle(reference, reference_text, text):
         nonlocal cached_service
         try:
             if cached_service is None:
@@ -53,8 +49,6 @@ def build_app(service_factory: Callable = create_service):
                 reference,
                 reference_text,
                 text,
-                model,
-                speed,
                 service=cached_service,
                 output_factory=settings.new_output_path,
             )
@@ -65,7 +59,7 @@ def build_app(service_factory: Callable = create_service):
     if settings.default_reference.is_file():
         default_reference = str(settings.default_reference)
 
-    with gr.Blocks(title="ด็อปเปิลเก็งเงอร์ — โคลนเสียงภาษาไทย") as app:
+    with gr.Blocks(title="ด็อปเปิลเก็งเงอร์ โคลนเสียงภาษาไทย") as app:
         gr.Markdown("# ด็อปเปิลเก็งเงอร์ (Doppelgänger)")
         gr.Markdown(
             "เครื่องมือนี้ใช้สำหรับเสียงของคุณเองหรือเสียงที่ได้รับอนุญาตเท่านั้น "
@@ -86,20 +80,13 @@ def build_app(service_factory: Callable = create_service):
             lines=4,
             max_lines=8,
         )
-        with gr.Row():
-            model = gr.Radio(
-                choices=[("V1 — อ่านภาษาไทยทั่วไป", "v1"), ("V2 — ลดคำข้าม/คำซ้ำ", "v2")],
-                value="v1",
-                label="โมเดล",
-            )
-            speed = gr.Slider(0.7, 1.2, value=DEFAULT_SYNTHESIS_SPEED, step=0.05, label="ความเร็ว (ค่าต่ำ = ช้าลง)")
         submit = gr.Button("สร้างเสียง", variant="primary")
         status = gr.Markdown()
         output_audio = gr.Audio(label="เสียงที่สร้าง")
         download = gr.File(label="ดาวน์โหลด WAV")
         submit.click(
             handle,
-            inputs=[reference, reference_text, text, model, speed],
+            inputs=[reference, reference_text, text],
             outputs=[status, output_audio, download],
             show_progress="full",
         )

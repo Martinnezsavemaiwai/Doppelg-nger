@@ -3,7 +3,6 @@ import {
   AudioLines,
   Captions,
   Check,
-  ChevronDown,
   CircleAlert,
   Download,
   FileAudio,
@@ -17,20 +16,13 @@ import {
   Upload,
 } from "lucide-react";
 
-import { DEFAULT_SYNTHESIS_SPEED, requestSynthesis, requestTranscription, type ModelId, type SynthesisResult } from "./api";
+import { requestSynthesis, requestTranscription, type SynthesisResult } from "./api";
 import { createRecordingFile, formatDuration, getSupportedRecordingMimeType } from "./recording";
 import { decodeTake, type Take } from "./waveform";
-
-type ModelOption = { id: ModelId; label: string };
 
 const MAX_REFERENCE_SECONDS = 15;
 const RECOMMENDED_SECONDS = [4, 8] as const;
 const TRACK_BARS = 96;
-
-const fallbackModels: ModelOption[] = [
-  { id: "v1", label: "V1 อ่านภาษาไทยทั่วไป" },
-  { id: "v2", label: "V2 ลดการอ่านข้ามและอ่านซ้ำ" },
-];
 
 const allowedReferenceExtensions = [".wav", ".mp3", ".m4a", ".flac", ".webm"];
 
@@ -49,10 +41,6 @@ function App() {
   const [referenceDuration, setReferenceDuration] = useState<number | null>(null);
   const [referenceText, setReferenceText] = useState("");
   const [text, setText] = useState("");
-  const [model, setModel] = useState<ModelId>("v1");
-  const [speed, setSpeed] = useState(DEFAULT_SYNTHESIS_SPEED);
-  const [models, setModels] = useState<ModelOption[]>(fallbackModels);
-  const [loadingModels, setLoadingModels] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -61,26 +49,6 @@ function App() {
   const [result, setResult] = useState<SynthesisResult | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    fetch("/api/models")
-      .then(async (response) => {
-        if (!response.ok) throw new Error("models unavailable");
-        return (await response.json()) as { models: ModelOption[] };
-      })
-      .then((payload) => {
-        if (active && payload.models?.length) setModels(payload.models);
-      })
-      .catch(() => {
-        // The local form remains usable with the known model options if the API is starting.
-      })
-      .finally(() => {
-        if (active) setLoadingModels(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!reference) {
@@ -275,8 +243,6 @@ function App() {
         reference,
         referenceText,
         text,
-        model,
-        speed,
       });
       setResult(payload);
     } catch (caught) {
@@ -387,30 +353,6 @@ function App() {
                 <span className={`character-count${text.length >= 500 ? " is-limit" : ""}`}>{text.length}/500</span>
               </div>
             </div>
-
-            <details className="settings">
-              <summary>
-                <span>ตั้งค่าเสียง</span>
-                <span className="settings-value">{model.toUpperCase()} ความเร็ว {speed.toFixed(2)} เท่า</span>
-                <ChevronDown size={18} aria-hidden="true" />
-              </summary>
-              <div className="controls-row">
-                <div className="field-group">
-                  <label htmlFor="model">โมเดล</label>
-                  <div className="select-wrap">
-                    <select id="model" value={model} onChange={(event) => setModel(event.target.value as ModelId)} disabled={loadingModels}>
-                      {models.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                    </select>
-                    <ChevronDown size={16} aria-hidden="true" />
-                  </div>
-                </div>
-                <div className="field-group">
-                  <label htmlFor="speed">ความเร็ว <span className="value-badge">{speed.toFixed(2)} เท่า</span></label>
-                  <input id="speed" type="range" min="0.7" max="1.2" step="0.05" value={speed} onChange={(event) => setSpeed(Number(event.target.value))} />
-                  <div className="range-labels"><span>ช้าลง</span><span>เร็วขึ้น</span></div>
-                </div>
-              </div>
-            </details>
           </section>
 
           <div className="action-bar">

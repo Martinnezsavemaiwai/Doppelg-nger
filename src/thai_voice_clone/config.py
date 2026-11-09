@@ -5,9 +5,6 @@ from pathlib import Path
 import secrets
 
 
-DEFAULT_SYNTHESIS_SPEED = 0.8
-
-
 @dataclass(frozen=True)
 class Settings:
     root: Path

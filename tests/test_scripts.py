@@ -60,8 +60,8 @@ def test_setup_check_only_does_not_create_the_runtime_junction(tmp_path):
 def test_setup_import_checks_keep_native_backends_in_separate_processes():
     source = (ROOT / "setup.ps1").read_text(encoding="utf-8")
 
-    assert "import torch, gradio, soundfile, f5_tts_th, faster_whisper" not in source
-    assert "import torch, gradio, soundfile, f5_tts_th" in source
+    assert "import torch, gradio, soundfile, voxcpm, faster_whisper" not in source
+    assert "import torch, gradio, soundfile, voxcpm" in source
     assert "import faster_whisper" in source
 
 
@@ -86,6 +86,12 @@ def test_run_legacy_dry_run_keeps_gradio_fallback():
     assert result.returncode == 0, result.stderr
     assert "thai_voice_clone.app" in result.stdout
     assert "127.0.0.1:7860" in result.stdout
+
+
+def test_stop_succeeds_when_nothing_is_running_or_in_dry_run():
+    result = run_powershell("stop.ps1", "-DryRun")
+    assert result.returncode == 0, result.stderr
+    assert "not running" in result.stdout or "Stop-Process -Id" in result.stdout
 
 
 def test_run_dry_run_describes_both_local_services():

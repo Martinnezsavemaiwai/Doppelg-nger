@@ -230,7 +230,7 @@ Base token names carry the light-theme value. A `-dark` sibling replaces its bas
 - **Electric Lime** (#d8f34e): the generate action, the play button, a completed step mark, and played waveform bars, with text selection as its one incidental use.
 - **Lime Lifted** (#e6fb7a): hover on the two filled lime controls only.
 - **Ink on Lime** (#1f2600): text and icons on any lime fill.
-- **Legible Lime** (#5b6b00 light, #d8f34e dark): lime as foreground on panels, for text buttons, the range control, the drag-over outline and the text caret. Light panels cannot carry Electric Lime as text.
+- **Legible Lime** (#5b6b00 light, #d8f34e dark): lime as foreground on panels, for text buttons, the drag-over outline and the text caret. Light panels cannot carry Electric Lime as text.
 
 ### Secondary
 - **Studio Plum** (#33203f): the header and the result panel in both themes, and the browser theme color. It is also the icon color inside the brand mark.
@@ -244,8 +244,8 @@ Base token names carry the light-theme value. A `-dark` sibling replaces its bas
 ### Neutral
 - **Ground** (#f4f0f6 light, #1a1220 dark): the page, and the sticky action bar that must mask content scrolling beneath it.
 - **Panel** (#ffffff light, #281b30 dark): step panels.
-- **Field** (#f1ecf4 light, #35263e dark): textareas and selects, filled rather than outlined.
-- **Line** (#ddd4e2 light, #43324d dark): the divider above the voice settings and the top edge of the action bar.
+- **Field** (#f1ecf4 light, #35263e dark): textareas, filled rather than outlined.
+- **Line** (#ddd4e2 light, #43324d dark): the top edge of the action bar.
 - **Line Strong** (#8c7d96 light, #86748f dark): outline and download button borders, and field hover borders.
 - **Ink** (#1f1426 light, #f8f2fa dark): primary text. **Ink Soft** (#5c4f66 light, #c0b2c8 dark): help, captions, timers, resting icons. **Ink Faint** (#6b5d75 light, #ad9eb6 dark): placeholders and disabled action text.
 - **Focus** (#1f1426 light, #ffffff dark): the keyboard outline. The header and the result panel hold it at white in both themes.
@@ -270,7 +270,7 @@ Base token names carry the light-theme value. A `-dark` sibling replaces its bas
 - **Emphasis** (700, 1.125rem): the generate action and the empty-state statement.
 - **Body** (400, 1rem, 1.6): running text. Textareas open to 1.7 for Thai stacked marks. Empty-state copy holds to 42ch.
 - **Body Small** (0.9375rem, 1.5): error messages at 500, warnings at 400, and text buttons at 600.
-- **Label** (600, 1rem): field labels, settings summary and filenames.
+- **Label** (600, 1rem): field labels and filenames.
 - **Button** (600, 1rem): outline, text, icon and download controls.
 - **Mark** (700, 1rem): the brand name, step numbers and the synthetic mark.
 - **Caption** (400, 0.875rem, 1.6): help, counters and timers.
@@ -284,7 +284,7 @@ Base token names carry the light-theme value. A `-dark` sibling replaces its bas
 
 A single centered shell up to 1240px wide, inset by a gutter of at least 16px that also respects device safe areas. Panels stack with 12px gaps on narrow windows and 16px gaps at 1024px and up. Spacing moves in 4, 8, 12, 16, 20 and 24px steps, with a 6px gap only between a label and its field.
 
-Under 560px, panels use 20px by 16px padding and capture actions stack at full width. From 560px, panels pad 24px, capture actions and voice settings sit in two columns, and the generate button sizes to its label instead of filling the row. From 720px the headline grows.
+Under 560px, panels use 20px by 16px padding and capture actions stack at full width. From 560px, panels pad 24px, capture actions sit in two columns, and the generate button sizes to its label instead of filling the row. From 720px the headline grows.
 
 From 1024px the workbench splits into a flexible input column and a 360 to 420px result column, and the result panel sticks 16px from the top with its own scroll. The generate action sticks to the bottom of the viewport inside the input column, masked by the ground color, and un-sticks on windows under 520px tall so it cannot cover the form. Drag-and-drop instructions appear only on devices with a fine hovering pointer.
 
@@ -328,7 +328,6 @@ All state transitions run 180ms ease-out and change color only, so controls do n
 - **Style:** Field fill with a 1px transparent border and 6px corners, labelled above with a 600-weight visible label and optional help text below. The main text field is the one exception, named by its step heading on screen and by a screen-reader label.
 - **Hover / Focus:** border becomes Line Strong on hover, and focus uses the shared 3px outline.
 - **Select:** a native select at 44px minimum height with an overlaid chevron.
-- **Range:** a native range at 44px minimum height, accented in Legible Lime, with its value shown in the label.
 - **Error:** inline above the action in Take Red with an icon, stating the next step. Length and character-limit problems turn their own caption Take Red at weight 600.
 
 ### Navigation

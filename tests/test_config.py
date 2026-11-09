@@ -2,11 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from thai_voice_clone.config import DEFAULT_SYNTHESIS_SPEED, load_settings
-
-
-def test_default_synthesis_speed_favors_natural_pacing():
-    assert DEFAULT_SYNTHESIS_SPEED == 0.8
+from thai_voice_clone.config import load_settings
 
 
 def test_load_settings_defaults_to_auto_and_repository_paths(monkeypatch):
