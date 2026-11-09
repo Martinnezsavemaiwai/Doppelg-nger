@@ -28,5 +28,6 @@ $frontend = Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -PassTh
 Write-Host "Backend started (PID $($backend.Id)): http://127.0.0.1:8000"
 Write-Host "Frontend started (PID $($frontend.Id)): http://127.0.0.1:5173"
 Write-Host "Logs: $logDir"
+Write-Host 'Stop with .\stop.ps1'
 Start-Sleep -Seconds 2
 Start-Process 'http://127.0.0.1:5173'
